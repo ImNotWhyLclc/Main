@@ -921,7 +921,7 @@ local globalRenderConnection = Services.RunService.RenderStepped:Connect(functio
                     playerESP.Bounties.Outline = MainESP.Options.TextOutline
                     playerESP.Bounties.OutlineColor = Color3.fromRGB(0, 0, 0)
                     playerESP.Bounties.Visible = true
-                else
+                elseif playerESP.Bounties then
                     playerESP.Bounties.Visible = false
                 end
                 
