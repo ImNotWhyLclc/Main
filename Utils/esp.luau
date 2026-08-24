@@ -11,7 +11,8 @@ local LocalPlayer = game:GetService("Players").LocalPlayer
 local Services = {
     RunService = game:GetService("RunService"),
     Players = game:GetService("Players"),
-	Stats = game:GetService("Stats"),
+    Stats = game:GetService("Stats"),
+    ReplicatedStorage = game:GetService("ReplicatedStorage"),
 }
 
 local MainESP = {
@@ -22,16 +23,16 @@ local MainESP = {
         Bottom = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y),
     },
     Options = {
-		Enabled = false,
-		Box = false,
-		Health = false,
-		Tracer = false,
+		Enabled = true,
+		Box = true,
+		Health = true,
+		Tracer = true,
 		TracerOrigin = "Bottom",
-		Name = false,
-		Distance = false,
-		Direction = false,
-		Skeleton = false,
-		TextOutline = false,
+		Name = true,
+		Distance = true,
+		Direction = true,
+		Skeleton = true,
+		TextOutline = true,
 		Color = Color3.new(1, 1, 1),
 		UseTeamColor = true,
 		Rainbow = false,
@@ -42,7 +43,8 @@ local MainESP = {
 		TracerThickness = 0,
 		DirectionThickness = 0,
 		SkeletonThickness = 0,
-        Bounties = false, -- jb only
+        Bounties = true, -- jb only
+        KATBounty = false, -- kat only
 	},
 	ObjectOptions = {
 		Enabled = false,
@@ -497,6 +499,8 @@ function MainESP:CreateESP(player, object, customName, customPredicate)
 
         if jailbreak[game.PlaceId] then
             PlayerESP.Bounties = self.CreateText()
+        elseif game.PlaceId == 621129760 then
+            PlayerESP.KATBounty = self.CreateText()
         end
         
         self.Container[player] = PlayerESP
@@ -739,6 +743,20 @@ local globalRenderConnection = Services.RunService.RenderStepped:Connect(functio
     end
     ESPPerformance.lastUpdate = now
     
+    local getKATTarget = (function()
+        if not getgenv().KAT_Data then return nil, "" end
+        local s, t = pcall(function()
+            return getgenv().KAT_Data.ReadSessionData({"TargetInfo", "Targets", LocalPlayer.Name})
+        end)
+        if s and t and t[1] then
+            local mvp = (t[4] and t[4] > 1) and " [MVP]" or ""
+            return t[1], "Bounty: " .. tostring(t[2]) .. mvp
+        end
+        return nil, ""
+    end)
+
+    local katTarget, katText = getKATTarget()
+    
     for player, playerESP in pairs(MainESP.Container) do
         if playerESP.IsPlayer then
 			if not player or not player.Parent then
@@ -753,7 +771,7 @@ local globalRenderConnection = Services.RunService.RenderStepped:Connect(functio
             end
             
             local detailLevel = CullingSystem:GetDetailLevel(distance)
-
+            
             if MainESP.Options.Enabled and 
                (not MainESP.Options.TeamCheck or not player.Team or LocalPlayer.Team ~= player.Team) and 
                MainESP:PlayerAlive(player) and player.Character then
@@ -886,13 +904,13 @@ local globalRenderConnection = Services.RunService.RenderStepped:Connect(functio
                     playerESP.Name.Visible = false
                 end
 
-                if MainESP.Options.Bounties and onScreen and jailbreak[game.PlaceId] then
+                if MainESP.Options.Bounties and onScreen and jailbreak[game.PlaceId] and playerESP.Bounties then
                     if not infoX then
                         infoX = dims.x + dims.width / 2
                     end
 
                     local getUsernameFromDisplayName = (function(name)
-                        for i,v in next, game:GetService("Players"):GetPlayers() do
+                        for i,v in next, Services.Players:GetPlayers() do
                             if v.DisplayName == name then
                                 return v.Name
                             end
@@ -903,7 +921,7 @@ local globalRenderConnection = Services.RunService.RenderStepped:Connect(functio
                     local format = (function(displayname)
                         local uh = getUsernameFromDisplayName(displayname)
                         if uh then
-                            local module = require(game:GetService("ReplicatedStorage").Bounty.BountyBoardService)
+                            local module = require(Services.ReplicatedStorage.Bounty.BountyBoardService)
                             for i,v in next, module.Bounties do
                                 if v.Name == uh then
                                     return "Bounty: ".. tostring(v.Bounty)
@@ -923,6 +941,23 @@ local globalRenderConnection = Services.RunService.RenderStepped:Connect(functio
                     playerESP.Bounties.Visible = true
                 elseif playerESP.Bounties then
                     playerESP.Bounties.Visible = false
+                end
+
+                if playerESP.KATBounty then
+                    if katTarget and player.Name == katTarget and onScreen then
+                        if not infoX then infoX = dims.x + dims.width / 2 end
+                        
+                        playerESP.KATBounty.Text = katText
+                        playerESP.KATBounty.Position = Vector2.new(infoX, topPos.Y - getgenv().test)
+                        playerESP.KATBounty.Color = Color3.fromRGB(255, 0, 0)
+                        playerESP.KATBounty.Font = MainESP.Options.Font
+                        playerESP.KATBounty.Size = MainESP.Options.FontSize
+                        playerESP.KATBounty.Outline = MainESP.Options.TextOutline
+                        playerESP.KATBounty.OutlineColor = Color3.fromRGB(0, 0, 0)
+                        playerESP.KATBounty.Visible = true
+                    else
+                        playerESP.KATBounty.Visible = false
+                    end
                 end
                 
 				if MainESP.Options.Distance and onScreen then
@@ -964,6 +999,20 @@ local globalRenderConnection = Services.RunService.RenderStepped:Connect(functio
 end)
 
 local CompatibilityFuncs = {
+    [621129760] = function() -- KAT
+        task.spawn(function()
+            repeat
+                for _, v in pairs(getgc(true)) do
+                    if type(v) == "table" and rawget(v, "ReadSessionData") then
+                        getgenv().KAT_Data = v
+                        break
+                    end
+                end
+                task.wait(1)
+            until getgenv().KAT_Data
+        end)
+    end,
+
     [292439477] = function() -- Phantom Forces
         for _, v in pairs(getgc(true)) do
             if type(v) == "function" and islclosure(v) then
