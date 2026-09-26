@@ -43,6 +43,7 @@ local MainESP = {
 		TracerThickness = 0,
 		DirectionThickness = 0,
 		SkeletonThickness = 0,
+        DistanceUnit = "studs",
         Bounties = false, -- jb only
         KATBounty = false, -- kat only
 	},
@@ -572,8 +573,13 @@ function MainESP:CreateESP(player, object, customName, customPredicate)
                     end
                     
                     if self.ObjectOptions.Distance then
-                        local dist = math.round(self.GetDistanceFromPlayer(LocalPlayer, objPos))
-                        table.insert(parts, "[" .. tostring(dist) .. " studs]")
+                        local dist = self.GetDistanceFromPlayer(LocalPlayer, objPos) or 0
+                        local unitLower = string.lower(MainESP.Options.DistanceUnit or "studs")
+                        local isMeters = unitLower == "meters" or unitLower == "m"
+                        local displayUnit = (unitLower == "m") and "M" or (unitLower == "s") and "S" or (unitLower == "meters" and "meters" or "studs")
+                        local distVal = isMeters and math.round(dist * 0.28) or math.round(dist)
+                        
+                        table.insert(parts, "[" .. tostring(distVal) .. " " .. displayUnit .. "]")
                     end
                     
                     local finalText = table.concat(parts, "\n")
@@ -815,7 +821,13 @@ local globalRenderConnection = Services.RunService.RenderStepped:Connect(functio
 
                         playerESP.Name.Text = player.DisplayName
                         if MainESP.Options.Distance and onScreen then
-                            playerESP.Name.Text ..= "\n" .. "[" .. tostring(math.round(distance)) .. " studs]"
+                            local safeDist = distance or 0
+                            local unitLower = string.lower(MainESP.Options.DistanceUnit or "studs")
+                            local isMeters = unitLower == "meters" or unitLower == "m"
+                            local displayUnit = (unitLower == "m") and "M" or (unitLower == "s") and "S" or (unitLower == "meters" and "meters" or "studs")
+                            local distVal = isMeters and math.round(safeDist * 0.28) or math.round(safeDist)
+                            
+                            playerESP.Name.Text ..= "\n" .. "[" .. tostring(distVal) .. " " .. displayUnit .. "]"
                         end
 
                         playerESP.Name.Position = Vector2.new(infoX, topPos.Y - 25)
@@ -966,7 +978,13 @@ local globalRenderConnection = Services.RunService.RenderStepped:Connect(functio
                         infoX = dims.x + dims.width / 2
                     end
 
-					playerESP.Distance.Text = "[" .. tostring(math.round(distance)) .. " studs]"
+                    local safeDist = distance or 0
+                    local unitLower = string.lower(MainESP.Options.DistanceUnit or "studs")
+                    local isMeters = unitLower == "meters" or unitLower == "m"
+                    local displayUnit = (unitLower == "m") and "M" or (unitLower == "s") and "S" or (unitLower == "meters" and "meters" or "studs")
+                    local distVal = isMeters and math.round(safeDist * 0.28) or math.round(safeDist)
+
+					playerESP.Distance.Text = "[" .. tostring(distVal) .. " " .. displayUnit .. "]"
 					playerESP.Distance.Position = Vector2.new(infoX, dims.y - dynamicOffsetY)
 					playerESP.Distance.Color = color
 					playerESP.Distance.Font = MainESP.Options.Font
